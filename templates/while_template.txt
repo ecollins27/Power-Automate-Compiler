@@ -1,0 +1,31 @@
+"{{block_name}}_If_Statement":{
+  "actions":{
+    "{{block_name}}":{
+      "actions":{
+        {{actions}}
+      },
+      "runAfter":{
+        "{{block_name}}_If_Statement":["Succeeded"]
+      },
+      "expression":"{{condition_negate}}",
+      "limit":{
+        "count":60,
+        "timeout":"PT1H"
+      },
+      "type":"Until"
+    }
+  },
+  "runAfter":{
+    {{run_after}}
+  },
+  "else"{
+    "actions":{}
+  },
+  "expression":{
+    "equals":[
+      "{{condition}}",
+      "true"
+    ]
+  },
+  "type":"If"
+}

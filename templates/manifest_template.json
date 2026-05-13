@@ -1,0 +1,11 @@
+{
+  "name": "{{flow_name}}",
+  "description": "",
+  "resources": [
+    {
+      "type": "Microsoft.Flow/flows",
+      "resourceId": "{{flow_id}}",
+      "dependsOn": []
+    }
+  ]
+}

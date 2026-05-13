@@ -1,0 +1,15 @@
+"{{block_name}}":{
+  "runAfter":{
+    {{run_after}}
+  },
+  "type":"InitializeVariable",
+  "inputs":{
+    "variables":[
+      {
+        "name":"{{variable_name}}",
+        "type":"{{variable_type}}",
+        "value":"{{variable_value}}"
+      }
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+"{{block_name}}":{
+  "actions":{
+    {{actions}}
+  },
+  "runAfter":{
+    {{run_after}}
+  },
+  "expression":"{{condition}}",
+  "limit":{
+    "count":60,
+    "timeout":"PT1H"
+  },
+  "type":"Until"
+}

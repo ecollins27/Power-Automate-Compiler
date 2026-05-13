@@ -1,0 +1,10 @@
+const->if|else|def|and|or|not|while|do|try|catch|for|in|=|\(|\)|\{|\}|\[|\]|:|\.|,
+~variable_type->int|float|string|object|bool|array|array2|object
+~int_const->\d\d*|-\d\d*
+~float_const->\d*\.\d\d*|-\d\d*\.\d*
+~string_const->\"(?:\\.|[^\"\\])*\"
+~bool_const->true|false
+~add_op->\+|-
+~mult_op->\*|/
+~rel_op->==|!=|<|<=|>|>=
+~id->[a-z|A-Z][a-z|A-Z|\d]*

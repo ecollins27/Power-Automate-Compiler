@@ -1,0 +1,20 @@
+"{{block_name}}":{
+  "actions":{
+    {{true_actions}}
+  },
+  "runAfter":{
+    {{run_after}}
+  },
+  "else"{
+    "actions":{
+      {{false_actions}}
+    }
+  },
+  "expression":{
+    "equals":[
+      "{{condition}}",
+      "true"
+    ]
+  },
+  "type":"If"
+}

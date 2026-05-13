@@ -1,0 +1,9 @@
+{{block_name}}:{
+  "actions":{
+    {{actions}}
+  },
+  "runAfter":{
+    {{run_after}}
+  },
+  "type":"Scope"
+}

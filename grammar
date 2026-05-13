@@ -1,0 +1,47 @@
+~program->~statement_list
+~statement_list->~statement ~statement_list_opt
+~statement_list_opt->~statement ~statement_list_opt|~epsilon
+~statement->~variable_declaration|~reference_assignment|~if_statement|~while_statement|~do_while_statement|~for_each_statement|~try_catch_statement|~function_call
+
+~for_each_statement->for ( ~variable_type ~id in ~expression ) { ~statement_list }
+
+~variable_declaration->~variable_type ~id ~default_value_opt
+~default_value_opt->= ~expression|~epsilon
+
+~reference_assignment->~ref = ~expression
+
+~function_call->. ~id ( ~parameter_list_opt )
+~parameter_list_opt->~expression ~parameter_list_tail_opt|~epsilon
+~parameter_list_tail_opt->, ~expression ~parameter_list_tail_opt|~epsilon
+
+~bool_expression->~and_expression ~or_expression_tail_opt
+~or_expression_tail_opt->or ~and_expression ~or_expression_tail_opt|~epsilon
+~and_expression->~bool_value ~and_expression_tail_opt
+~and_expression_tail_opt->and ~bool_value ~and_expression_tail_opt|~epsilon
+~bool_value->~bool_const|~expression ~rel_op ~expression|( ~bool_expression )|not ~bool_value
+
+~expression->~mult_expression ~add_expression_tail_opt
+~add_expression_tail_opt->~add_op ~mult_expression ~add_expression_tail_opt|~epsilon
+~mult_expression->~value ~mult_expression_tail_opt
+~mult_expression_tail_opt->~mult_op ~value ~mult_expression_tail_opt|~epsilon
+~value->~ref|~int_const|~float_const|~string_const|~bool_const|~array_const|~object_const|( ~expression )|( ~bool_expression )|~function_call
+
+~ref->~id ~access_modifier_opt
+~access_modifier_opt->[ ~expression ] ~access_modifier_opt|~epsilon
+
+~array_const->[ ~expression_list_opt ]
+~expression_list_opt->~expression ~expression_list_tail_opt|~epsilon
+~expression_list_tail_opt->, ~expression ~expression_list_tail_opt|~epsilon
+
+~object_const->{ ~map_list_opt }
+~map_list_opt->~string_const : ~expression ~map_list_tail_opt|~epsilon
+~map_list_tail_opt->, ~string_const : ~expression ~map_list_tail_opt|~epsilon
+
+~if_statement->if ( ~bool_expression ) { ~statement_list } ~else_opt
+~else_opt->else { ~statement_list }|~epsilon
+
+~while_statement->while ( ~bool_expression ) { ~statement_list }
+~do_while_statement->do { ~statement_list } while ( ~bool_expression )
+
+~try_catch_statement->try { ~statement_list } ~catch_opt
+~catch_opt->catch { ~statement_list }|~epsilon
