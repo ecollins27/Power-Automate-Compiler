@@ -1,0 +1,10 @@
+"{{block_name}}": {
+  "type": "IncrementVariable",
+  "runAfter": {
+    {{run_after}}
+  },
+  "inputs": {
+    "name": "{{variable_name}}",
+    "value": "{{increment}}"
+  }
+},

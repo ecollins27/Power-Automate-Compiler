@@ -1,0 +1,10 @@
+"{{block_name}}": {
+  "runAfter": {
+    {{run_after}}
+  },
+  "type": "Table",
+  "inputs": {
+    "from": "{{value}}",
+    "format": "CSV"
+  }
+},

@@ -150,14 +150,41 @@ public class Generator {
         useTemplate("while_template.txt", writer, depth, "block_name", whileName, "run_after", runAfter, "actions", actions.toString(), "condition", generateExpression(whileStatement.condition), "condition_negate", generateExpression(whileStatement.condition.negate()));
     }
 
-    public void generateForEach(SimplifiedASTNode.ForEachStatement forEachStatement, SimplifiedASTNode.Statement previous, StringWriter writer, int depth){
+    public void generateForEach(SimplifiedASTNode.ForEachStatement forEachStatement, SimplifiedASTNode.Statement previous, StringWriter writer, int depth) throws IOException {
         String forEachName = getBlockName("For_Each");
         forEachStatement.blockName.value = forEachName;
         StringWriter actions = new StringWriter();
         actions.write(forEachStatement.loopBlock.first == null? "":",\n");
         String runAfter = getRunAfter(previous);
         generateStatementList(forEachStatement.loopBlock, actions, depth + 2);
-        useTemplate("for_each_template.txt", writer, depth, "block_name", forEachName, "run_after", runAfter, "actions", actions.toString(), );
+        useTemplate("for_each_template.txt", writer, depth, "block_name", forEachName, "run_after", runAfter, "actions", actions.toString(), "expression", generateExpression(forEachStatement.expression));
+    }
+
+    public void generateBlockFunctionCall(SimplifiedASTNode.FunctionCall functionCall, SimplifiedASTNode.Statement previous, StringWriter writer, int depth) throws IOException {
+        String blockName = getBlockName(functionCall.functionName);
+        String runAfter = getRunAfter(previous);
+        switch (functionCall.functionName){
+            case "Compose":
+                useTemplate("compose_template.txt", writer, depth, "block_name", blockName, "run_after", runAfter, "inputs", generateExpression(functionCall.parameters.get(0)));
+                break;
+            case "IncrementVariable":
+                useTemplate("increment_variable_template.txt", writer, depth, "block_name", blockName, "run_after", runAfter, "variable_name", ((SimplifiedASTNode.Variable)functionCall.parameters.get(0)).name, "increment", generateExpression(functionCall.parameters.get(1)));
+                break;
+            case "AppendtoStringVariable":
+                useTemplate("append_string_template.txt", writer, depth, "block_name", blockName, "run_after", runAfter, "variable_name", ((SimplifiedASTNode.Variable)functionCall.parameters.get(0)).name, "increment", generateExpression(functionCall.parameters.get(1)));
+                break;
+            case "AppendtoArrayVariable":
+                useTemplate("append_array_template.txt", writer, depth, "block_name", blockName, "run_after", runAfter, "variable_name", ((SimplifiedASTNode.Variable)functionCall.parameters.get(0)).name, "increment", generateExpression(functionCall.parameters.get(1)));
+                break;
+            case "to_html":
+                useTemplate("to_html_template.txt", writer, depth, "block_name", blockName, "run_after", runAfter, "value", generateExpression(functionCall.parameters.get(0)));
+                break;
+            case "to_csv":
+                useTemplate("to_csv_template.txt", writer, depth, "block_name", blockName, "run_after", runAfter, "value", generateExpression(functionCall.parameters.get(0)));
+                break;
+            default:
+                throw new RuntimeException(String.format("Unknwon function %s", functionCall.functionName));
+        }
     }
 
     public void generateIf(SimplifiedASTNode.IfStatement ifStatement, SimplifiedASTNode.Statement previous, StringWriter writer, int depth) throws IOException {

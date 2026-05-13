@@ -1,0 +1,7 @@
+"{{block_name}}": {
+  "runAfter": {
+    {{run_after}}
+  },
+  "type": "Compose",
+  "inputs": "{{inputs}}"
+}

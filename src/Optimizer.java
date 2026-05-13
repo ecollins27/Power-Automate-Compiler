@@ -6,8 +6,7 @@ import java.util.function.Function;
 
 public class Optimizer {
 
-    public final static Set<String> blockFunctions = new HashSet<>(List.of("Compose"));
-    public final static Set<String> inlineFunctions = new HashSet<>(List.of("outputs"));
+    public final static Set<String> blockFunctions = new HashSet<>(List.of("Compose", "IncrementVariable", "AppendtoStringVariable", "AppendtoArrayVariable", "to_csv", "to_html", "send_email"));
 
     public static void replaceDeclaration(SimplifiedASTNode.VariableDeclaration declaration, SimplifiedASTNode.StatementList scope, boolean createReferenceAssignment){
         boolean assignsValue = declaration.defaultValue != null;
@@ -134,26 +133,56 @@ public class Optimizer {
         }
     }
 
-    public void addReferenceAssignmentPrereqs(SimplifiedASTNode.ReferenceAssignment referenceAssignment, Stack<SimplifiedASTNode.FunctionCall> prereqs){
-        referenceAssignment.assignedValue = addExpressionPrereqs(referenceAssignment.assignedValue, prereqs);
+    public SimplifiedASTNode.Statement addReferenceAssignmentPrereqs(SimplifiedASTNode.ReferenceAssignment referenceAssignment, Stack<SimplifiedASTNode.FunctionCall> prereqs){
         SimplifiedASTNode.Variable variable = referenceAssignment.variable;
+        boolean useGenericCompose = false;
         if (referenceAssignment.assignedValue.usesVariable(variable.name)){
-
-            if (referenceAssignment.assignedValue instanceof SimplifiedASTNode.NumericOperation){
-                SimplifiedASTNode.NumericOperation numericOperation = (SimplifiedASTNode.NumericOperation) referenceAssignment.assignedValue;
-                String variableType = referenceAssignment.variable.type;
-                if (numericOperation.e1 == variable){
-                    if (variableType.equals("int") || variableType.equals("float")){
-                        prereqs.push(new SimplifiedASTNode.FunctionCall("incrementVariable", addExpressionPrereqs(numericOperation.e2, prereqs)));
+            if (referenceAssignment.assignedValue instanceof SimplifiedASTNode.NumericOperation && ((SimplifiedASTNode.NumericOperation) referenceAssignment.assignedValue).operator == SimplifiedASTNode.NumericOperator.ADD){
+                SimplifiedASTNode.NumericOperation operation = (SimplifiedASTNode.NumericOperation) referenceAssignment.assignedValue;
+                if (operation.e1 == referenceAssignment.variable){
+                    if (referenceAssignment.variable.type.equals("int") || referenceAssignment.variable.type.equals("float")){
+                        return new SimplifiedASTNode.FunctionCall("IncrementVariable", referenceAssignment.variable, addExpressionPrereqs(operation.e2, prereqs));
+                    } else if (referenceAssignment.variable.type.equals("string")){
+                        return new SimplifiedASTNode.FunctionCall("AppendToStringVariable", referenceAssignment.variable, addExpressionPrereqs(operation.e2, prereqs));
+                    } else if (referenceAssignment.variable.type.equals("array")){
+                        return new SimplifiedASTNode.FunctionCall("AppendToArrayVariable", referenceAssignment.variable, addExpressionPrereqs(operation.e2, prereqs));
+                    } else {
+                        throw new RuntimeException("Cannot add boolean or object types");
                     }
+                } else if (operation.e2 == referenceAssignment.variable){
+                    if (referenceAssignment.variable.type.equals("int") || referenceAssignment.variable.type.equals("float")){
+                        return new SimplifiedASTNode.FunctionCall("IncrementVariable", referenceAssignment.variable, addExpressionPrereqs(operation.e1, prereqs));
+                    } else if (referenceAssignment.variable.type.equals("string")){
+                        return new SimplifiedASTNode.FunctionCall("AppendToStringVariable", referenceAssignment.variable, addExpressionPrereqs(operation.e1, prereqs));
+                    } else if (referenceAssignment.variable.type.equals("array")){
+                        return new SimplifiedASTNode.FunctionCall("AppendToArrayVariable", referenceAssignment.variable, addExpressionPrereqs(operation.e1, prereqs));
+                    } else {
+                        throw new RuntimeException("Cannot add boolean or object types");
+                    }
+                } else {
+                    useGenericCompose = true;
                 }
-
+            } else if (referenceAssignment.assignedValue instanceof SimplifiedASTNode.NumericOperation && ((SimplifiedASTNode.NumericOperation) referenceAssignment.assignedValue).operator == SimplifiedASTNode.NumericOperator.SUBTRACT){
+                SimplifiedASTNode.NumericOperation operation = (SimplifiedASTNode.NumericOperation) referenceAssignment.assignedValue;
+                if (operation.e1 == referenceAssignment.variable){
+                    if (referenceAssignment.variable.type.equals("int") || referenceAssignment.variable.type.equals("float")){
+                        return new SimplifiedASTNode.FunctionCall("DecrementVariable", referenceAssignment.variable, addExpressionPrereqs(operation.e2, prereqs));
+                    } else {
+                        throw new RuntimeException("Cannot subtract non numeric types");
+                    }
+                } else {
+                    useGenericCompose = true;
+                }
+            } else {
+                useGenericCompose = true;
             }
-
+        } else {
+            return referenceAssignment;
         }
-        for (int i = 0; i < referenceAssignment.accessModifiers.size(); i++){
-            referenceAssignment.accessModifiers.set(i, addExpressionPrereqs(referenceAssignment.accessModifiers.get(i), prereqs));
-        }
+        SimplifiedASTNode.FunctionCall compose = new SimplifiedASTNode.FunctionCall("Compose", referenceAssignment.assignedValue);
+        prereqs.push(compose);
+        compose.parameters.set(0, addExpressionPrereqs(referenceAssignment.assignedValue, prereqs));
+        return new SimplifiedASTNode.FunctionCall("outputs", compose.blockName);
     }
 
     public static Stack<SimplifiedASTNode.FunctionCall> getStatementPrereqs(SimplifiedASTNode.Statement statement){

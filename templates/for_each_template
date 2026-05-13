@@ -1,0 +1,10 @@
+"Apply_to_each": {
+  "foreach": "{{expression}}",
+  "runAfter": {
+    {{run_after}}
+  },
+  "actions": {
+    {{actions}}
+  },
+  "type": "Foreach"
+},
