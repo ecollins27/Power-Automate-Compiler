@@ -1,0 +1,34 @@
+{
+  "name":"{{flow_id}}",
+  "id":"/providers/Microsoft.Flow/flows/{{flow_id}}",
+  "type":"Microsoft.Flow/flows",
+  "properties":{
+      "$schema":"https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion":"undefined",
+      "triggers":{
+        "manual":{
+          "type":"Request",
+          "kind":"Button",
+          "inputs":{
+            "schema":{
+              "type":"object",
+              "properties":{
+
+              },
+              "required":[
+
+              ]
+            }
+          }
+        }
+      },
+      "actions":{
+          {{actions}}
+        }
+      }
+    },
+    "connectionReferences":{},
+    "flowFailureAlertSubscribed":false,
+    "isManaged":false
+  }
+}

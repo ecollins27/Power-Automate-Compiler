@@ -9,25 +9,23 @@ import java.util.Set;
 
 public class Generator {
 
-    File directory;
-    File manifest;
-    File definitions;
+    String directory;
     String flowName;
     String flowID;
 
     HashMap<SimplifiedASTNode.Statement, String> blockNames;
 
     public Generator(String flowName, String folderName){
-        directory = new File("output/" + folderName);
-        directory.mkdir();
-        manifest = new File("output/" + folderName + "/manifest.json");
-        definitions = new File("output/" + folderName + "/definitions.json");
+        directory = "output/" + folderName;
+        File directoryFile = new File(directory);
+        directoryFile.mkdir();
         this.flowName = flowName;
         this.flowID = flowName.replace(" ", "_");
         blockNames = new HashMap<>();
     }
 
     public String getBlockName(String name){
+        name = name.replace(' ', '_');
         if (!blockNames.values().contains(name)){
             return name;
         }
@@ -38,12 +36,27 @@ public class Generator {
         return name + Integer.toString(index);
     }
 
-    public void writeBoilerPlate(FileWriter manWriter, FileWriter defWriter) throws IOException {
-        File file1 = new File("templates/manifest_template.json");
-        Scanner manifestTemplate = new Scanner(file1);
-        while (manifestTemplate.hasNextLine()){
-            manWriter.write(manifestTemplate.nextLine().replace("{{flow_name}}", flowName).replace("{{flow_id}}", flowID) + "\n");
-        }
+    public void writeBoilerPlate() throws IOException {
+        FileWriter manifest1 = new FileWriter(directory + "/manifest.json");
+        StringWriter stringWriter = new StringWriter();
+        useTemplate("manifest_template.txt", stringWriter, 0, "flow_name", flowName, "flow_id", flowID);
+        manifest1.write(stringWriter.toString());
+        manifest1.close();
+
+        new File(directory + "/Microsoft.Flow").mkdir();
+        new File(directory + "/Microsoft.Flow/flows").mkdir();
+
+        FileWriter manifest2 = new FileWriter(directory + "/Microsoft.Flow/flows/manifest.json");
+        manifest2.write(String.format("{\"packageSchemaVersion\":\"1.0\",\"flowAssets\":{\"assetPaths\":[\"%s\"]}", flowID));
+        manifest2.close();
+
+        new File(directory + "/Microsoft.Flow/flows/" + flowID).mkdir();
+        FileWriter apisMap = new FileWriter(directory + String.format("/Microsoft.Flow/flows/%s/apisMap.json", flowID));
+        apisMap.write("{}");
+        apisMap.close();
+        FileWriter connectionsMap = new FileWriter(directory + String.format("/Microsoft.Flow/flows/%s/connectionsMap.json", flowID));
+        connectionsMap.write("{}");
+        connectionsMap.close();
     }
 
     public void useTemplate(String templateName, StringWriter writer, int depth, String... args) throws IOException {
@@ -64,6 +77,33 @@ public class Generator {
     public String generateExpression(SimplifiedASTNode.Expression expression){
         if (expression instanceof SimplifiedASTNode.FunctionCall){
             String functionName = ((SimplifiedASTNode.FunctionCall) expression).functionName;
+            if (functionName.startsWith("to_")) {
+                functionName = functionName.substring(3);
+            }
+            String generated = functionName + "(";
+            for (int i = 0; i < ((SimplifiedASTNode.FunctionCall) expression).parameters.size(); i++){
+                generated += generateExpression(((SimplifiedASTNode.FunctionCall) expression).parameters.get(i));
+                if (i < ((SimplifiedASTNode.FunctionCall) expression).parameters.size() - 1){
+                    generated += ",";
+                }
+            }
+            return generated + ")";
+        } else if (expression instanceof SimplifiedASTNode.BoolOperation){
+            SimplifiedASTNode.BoolOperation boolOperation = (SimplifiedASTNode.BoolOperation) expression;
+            if (boolOperation.operator == SimplifiedASTNode.BoolOperator.AND){
+                return String.format("and(%s,%s)", generateExpression(boolOperation.b1), generateExpression(boolOperation.b2));
+            } else if (boolOperation.operator == SimplifiedASTNode.BoolOperator.OR){
+                return String.format("or(%s,%s)", generateExpression(boolOperation.b1), generateExpression(boolOperation.b2));
+            } else {
+                return String.format("not(%s)", generateExpression(boolOperation.b1));
+            }
+        } else if (expression instanceof SimplifiedASTNode.ExpressionComparison){
+            SimplifiedASTNode.ExpressionComparison expressionComparison = (SimplifiedASTNode.ExpressionComparison) expression;
+            HashMap<SimplifiedASTNode.RelOperator, String> map = new HashMap<>();
+            map.put(SimplifiedASTNode.RelOperator.EQUALS, "equals");
+            if (expressionComparison.operator == SimplifiedASTNode.RelOperator.EQUALS){
+
+            }
         }
         return null;
     }
@@ -182,6 +222,12 @@ public class Generator {
             case "to_csv":
                 useTemplate("to_csv_template.txt", writer, depth, "block_name", blockName, "run_after", runAfter, "value", generateExpression(functionCall.parameters.get(0)));
                 break;
+            case "send_email":
+                if (functionCall.parameters.size() > 4) {
+                    useTemplate("to_email_template.txt", writer, depth, "block_name", blockName, "run_after", runAfter, "from", generateExpression(functionCall.parameters.get(0)), "to", generateExpression(functionCall.parameters.get(1)), "subject", generateExpression(functionCall.parameters.get(2)), "contents", generateExpression(functionCall.parameters.get(3)), "attachment_name", generateExpression(functionCall.parameters.get(4)), "attachment_contents", generateExpression(functionCall.parameters.get(5)));
+                } else {
+                    useTemplate("to_email_template.txt", writer, depth, "block_name", blockName, "run_after", runAfter, "from", generateExpression(functionCall.parameters.get(0)), "to", generateExpression(functionCall.parameters.get(1)), "subject", generateExpression(functionCall.parameters.get(2)), "contents", generateExpression(functionCall.parameters.get(3)));
+                }
             default:
                 throw new RuntimeException(String.format("Unknwon function %s", functionCall.functionName));
         }
@@ -213,12 +259,27 @@ public class Generator {
 
     }
 
-    public void generateStatement(SimplifiedASTNode.Statement statement, SimplifiedASTNode.Statement previous, StringWriter writer, int depth){
+    public void generateStatement(SimplifiedASTNode.Statement statement, SimplifiedASTNode.Statement previous, StringWriter writer, int depth) throws IOException {
         if (statement instanceof SimplifiedASTNode.VariableDeclaration){
+            generateVariableDeclaration((SimplifiedASTNode.VariableDeclaration) statement, previous, writer, depth);
+        } else if (statement instanceof SimplifiedASTNode.ReferenceAssignment){
+            generateReferenceAssignment((SimplifiedASTNode.ReferenceAssignment) statement, previous, writer, depth);
+        } else if (statement instanceof SimplifiedASTNode.IfStatement){
+            generateIf((SimplifiedASTNode.IfStatement) statement, previous, writer, depth);
+        } else if (statement instanceof SimplifiedASTNode.WhileStatement){
+            generateWhile((SimplifiedASTNode.WhileStatement) statement, previous, writer, depth);
+        } else if (statement instanceof SimplifiedASTNode.DoWhileStatement){
+            generateDoWhile((SimplifiedASTNode.DoWhileStatement) statement, previous, writer, depth);
+        } else if (statement instanceof SimplifiedASTNode.ForEachStatement){
+            generateForEach((SimplifiedASTNode.ForEachStatement) statement, previous, writer, depth);
+        } else if (statement instanceof SimplifiedASTNode.FunctionCall){
+            generateBlockFunctionCall((SimplifiedASTNode.FunctionCall) statement, previous, writer, depth);
+        } else {
+            throw new RuntimeException(String.format("Unknown statement type %s", statement.getClass().toString()));
         }
     }
 
-    public void generateStatementList(SimplifiedASTNode.StatementList statementList, StringWriter writer, int depth){
+    public void generateStatementList(SimplifiedASTNode.StatementList statementList, StringWriter writer, int depth) throws IOException {
         SimplifiedASTNode.Statement currentStatement = statementList.first;
         while (currentStatement != null){
             generateStatement(currentStatement, currentStatement.prev, writer, depth);
@@ -230,15 +291,13 @@ public class Generator {
     }
 
     public void generate(SimplifiedASTNode.StatementList rootNode) throws IOException {
-        FileWriter manWriter = new FileWriter(manifest);
-        FileWriter defWriter = new FileWriter(definitions);
-        writeBoilerPlate(manWriter, defWriter);
-
-        defWriter.write("{\n");
+        writeBoilerPlate();
+        FileWriter definitions = new FileWriter(directory + String.format("/Microsoft.Flow/flows/%s/definition.json", flowID));
         StringWriter actions = new StringWriter();
-        defWriter.write("}\n");
-
-        manWriter.close();
-        defWriter.close();
+        StringWriter writer = new StringWriter();
+        generateStatementList(rootNode, actions, 5);
+        useTemplate("definitions_template.txt", writer, 0, "flow_id", flowID, "actions", actions.toString());
+        definitions.write(writer.toString());
+        definitions.close();
     }
 }

@@ -14,6 +14,9 @@ public abstract class SimplifiedASTNode {
                 toString += currentStatement.toString() + "\n";
                 currentStatement = currentStatement.next;
             }
+            if (!toString.isEmpty()){
+                toString = toString.substring(0, toString.length() - 1);
+            }
             return toString;
         }
     }
@@ -25,7 +28,7 @@ public abstract class SimplifiedASTNode {
         StringConst blockName;
 
         public Statement(){
-            blockName = new StringConst(this.getClass().toString());
+            blockName = new StringConst("nameof " + this.getClass().getName());
         }
     }
 
@@ -188,6 +191,9 @@ public abstract class SimplifiedASTNode {
             String toString = functionName + "(";
             for (Expression e: parameters){
                 toString += e.toString() + ", ";
+            }
+            if (!parameters.isEmpty()){
+                toString = toString.substring(0, toString.length() - 2);
             }
             return toString + ")";
         }
@@ -386,6 +392,9 @@ public abstract class SimplifiedASTNode {
                 for (Expression e: accessModifiers){
                     toString += e.toString() + ", ";
                 }
+                if (!accessModifiers.isEmpty()){
+                    toString = toString.substring(0, toString.length() - 2);
+                }
                 toString += "]";
             }
             return toString;
@@ -485,6 +494,9 @@ public abstract class SimplifiedASTNode {
             for (Expression e: value){
                 toString += e.toString() + ", ";
             }
+            if (!value.isEmpty()){
+                toString = toString.substring(0, toString.length() - 2);
+            }
             return toString + "]";
         }
     }
@@ -515,6 +527,9 @@ public abstract class SimplifiedASTNode {
             String toString = "{";
             for (String key: value.keySet()){
                 toString += String.format("%s: %s, ", key, value.get(key));
+            }
+            if (!value.isEmpty()){
+                toString = toString.substring(0, toString.length() - 2);
             }
             return toString + "}";
         }

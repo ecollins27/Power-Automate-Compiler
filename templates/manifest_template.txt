@@ -1,0 +1,20 @@
+{
+   "schema":"1.0",
+   "details":{
+      "displayName":"{{flow_name}}",
+      "description":"",
+   },
+   "resources": {
+      "{{flow_id}}":{
+         "type":"Microsoft.Flow/flows",
+         "suggestedCreationType":"Update",
+         "creationType":"Existing, New, Update",
+         "details":{
+            "displayName":"{{flow_name}}"
+         },
+         "configurableBy":"User",
+         "hierarchy":"Root",
+         "dependsOn":[]
+      }
+   }
+}

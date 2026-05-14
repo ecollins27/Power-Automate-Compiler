@@ -133,59 +133,85 @@ public class Optimizer {
         }
     }
 
-    public SimplifiedASTNode.Statement addReferenceAssignmentPrereqs(SimplifiedASTNode.ReferenceAssignment referenceAssignment, Stack<SimplifiedASTNode.FunctionCall> prereqs){
+    public static SimplifiedASTNode.Statement addReferenceAssignmentPrereqs(SimplifiedASTNode.ReferenceAssignment referenceAssignment, Stack<SimplifiedASTNode.FunctionCall> prereqs){
         SimplifiedASTNode.Variable variable = referenceAssignment.variable;
-        boolean useGenericCompose = false;
+        if ((variable.type.equals("int") || variable.type.equals("string") || variable.type.equals("float")) && !referenceAssignment.accessModifiers.isEmpty()){
+            throw new RuntimeException("Variable type cannot have access modifiers");
+        }
         if (referenceAssignment.assignedValue.usesVariable(variable.name)){
             if (referenceAssignment.assignedValue instanceof SimplifiedASTNode.NumericOperation && ((SimplifiedASTNode.NumericOperation) referenceAssignment.assignedValue).operator == SimplifiedASTNode.NumericOperator.ADD){
                 SimplifiedASTNode.NumericOperation operation = (SimplifiedASTNode.NumericOperation) referenceAssignment.assignedValue;
-                if (operation.e1 == referenceAssignment.variable){
-                    if (referenceAssignment.variable.type.equals("int") || referenceAssignment.variable.type.equals("float")){
-                        return new SimplifiedASTNode.FunctionCall("IncrementVariable", referenceAssignment.variable, addExpressionPrereqs(operation.e2, prereqs));
-                    } else if (referenceAssignment.variable.type.equals("string")){
-                        return new SimplifiedASTNode.FunctionCall("AppendToStringVariable", referenceAssignment.variable, addExpressionPrereqs(operation.e2, prereqs));
-                    } else if (referenceAssignment.variable.type.equals("array")){
-                        return new SimplifiedASTNode.FunctionCall("AppendToArrayVariable", referenceAssignment.variable, addExpressionPrereqs(operation.e2, prereqs));
+                SimplifiedASTNode.Expression expression = null;
+                if (operation.e1 instanceof SimplifiedASTNode.Reference && ((SimplifiedASTNode.Reference) operation.e1).variable == referenceAssignment.variable){
+                    expression = operation.e2;
+                } else if (operation.e2 instanceof SimplifiedASTNode.Reference && ((SimplifiedASTNode.Reference) operation.e2).variable == referenceAssignment.variable){
+                    expression = operation.e1;
+                }
+                if (expression != null){
+                    SimplifiedASTNode.FunctionCall functionCall = new SimplifiedASTNode.FunctionCall("", referenceAssignment.variable);
+                    if (expression.usesVariable(variable.name)){
+                        SimplifiedASTNode.FunctionCall compose = new SimplifiedASTNode.FunctionCall("Compose");
+                        prereqs.push(compose);
+                        compose.parameters.add(addExpressionPrereqs(expression, prereqs));
                     } else {
-                        throw new RuntimeException("Cannot add boolean or object types");
+                        functionCall.parameters.add(addExpressionPrereqs(expression, prereqs));
                     }
-                } else if (operation.e2 == referenceAssignment.variable){
-                    if (referenceAssignment.variable.type.equals("int") || referenceAssignment.variable.type.equals("float")){
-                        return new SimplifiedASTNode.FunctionCall("IncrementVariable", referenceAssignment.variable, addExpressionPrereqs(operation.e1, prereqs));
-                    } else if (referenceAssignment.variable.type.equals("string")){
-                        return new SimplifiedASTNode.FunctionCall("AppendToStringVariable", referenceAssignment.variable, addExpressionPrereqs(operation.e1, prereqs));
-                    } else if (referenceAssignment.variable.type.equals("array")){
-                        return new SimplifiedASTNode.FunctionCall("AppendToArrayVariable", referenceAssignment.variable, addExpressionPrereqs(operation.e1, prereqs));
-                    } else {
-                        throw new RuntimeException("Cannot add boolean or object types");
+                    switch (variable.type){
+                        case "int":
+                            functionCall.functionName = "IncrementVariable";
+                            break;
+                        case "float":
+                            functionCall.functionName = "IncrementVariable";
+                            break;
+                        case "string":
+                            functionCall.functionName = "AppendtoStringVariable";
+                            break;
+                        case "array":
+                            functionCall.functionName = "AppendToArrayVariable";
+                            break;
+                        default:
+                            throw new RuntimeException("Cannot add boolean or object types");
                     }
-                } else {
-                    useGenericCompose = true;
+                    return functionCall;
                 }
             } else if (referenceAssignment.assignedValue instanceof SimplifiedASTNode.NumericOperation && ((SimplifiedASTNode.NumericOperation) referenceAssignment.assignedValue).operator == SimplifiedASTNode.NumericOperator.SUBTRACT){
                 SimplifiedASTNode.NumericOperation operation = (SimplifiedASTNode.NumericOperation) referenceAssignment.assignedValue;
-                if (operation.e1 == referenceAssignment.variable){
-                    if (referenceAssignment.variable.type.equals("int") || referenceAssignment.variable.type.equals("float")){
-                        return new SimplifiedASTNode.FunctionCall("DecrementVariable", referenceAssignment.variable, addExpressionPrereqs(operation.e2, prereqs));
-                    } else {
-                        throw new RuntimeException("Cannot subtract non numeric types");
-                    }
-                } else {
-                    useGenericCompose = true;
+                SimplifiedASTNode.Expression expression = null;
+                if (operation.e1 instanceof SimplifiedASTNode.Reference && ((SimplifiedASTNode.Reference) operation.e1).variable == referenceAssignment.variable){
+                    expression = operation.e2;
                 }
-            } else {
-                useGenericCompose = true;
+                if (expression != null){
+                    SimplifiedASTNode.FunctionCall functionCall = new SimplifiedASTNode.FunctionCall("", referenceAssignment.variable);
+                    if (expression.usesVariable(variable.name)){
+                        SimplifiedASTNode.FunctionCall compose = new SimplifiedASTNode.FunctionCall("Compose");
+                        prereqs.push(compose);
+                        compose.parameters.add(addExpressionPrereqs(expression, prereqs));
+                    } else {
+                        functionCall.parameters.add(addExpressionPrereqs(expression, prereqs));
+                    }
+                    switch (variable.type){
+                        case "int":
+                            functionCall.functionName = "DecrementVariable";
+                            break;
+                        case "float":
+                            functionCall.functionName = "DecrementVariable";
+                            break;
+                        default:
+                            throw new RuntimeException("Cannot subtract boolean, string, array, or object types");
+                    }
+                    return functionCall;
+                }
             }
         } else {
-            return referenceAssignment;
+            return null;
         }
-        SimplifiedASTNode.FunctionCall compose = new SimplifiedASTNode.FunctionCall("Compose", referenceAssignment.assignedValue);
+        SimplifiedASTNode.FunctionCall compose = new SimplifiedASTNode.FunctionCall("Compose");
         prereqs.push(compose);
-        compose.parameters.set(0, addExpressionPrereqs(referenceAssignment.assignedValue, prereqs));
+        compose.parameters.add(addExpressionPrereqs(referenceAssignment.assignedValue, prereqs));
         return new SimplifiedASTNode.FunctionCall("outputs", compose.blockName);
     }
 
-    public static Stack<SimplifiedASTNode.FunctionCall> getStatementPrereqs(SimplifiedASTNode.Statement statement){
+    public static Stack<SimplifiedASTNode.FunctionCall> getStatementPrereqs(SimplifiedASTNode.Statement statement, SimplifiedASTNode.StatementList scope){
         Stack<SimplifiedASTNode.FunctionCall> prereqs = new Stack<>();
         if (statement instanceof SimplifiedASTNode.VariableDeclaration){
             if (((SimplifiedASTNode.VariableDeclaration) statement).defaultValue != null){
@@ -193,10 +219,17 @@ public class Optimizer {
             }
             return prereqs;
         } else if (statement instanceof SimplifiedASTNode.ReferenceAssignment){
-            SimplifiedASTNode.ReferenceAssignment referenceAssignment = (SimplifiedASTNode.ReferenceAssignment) statement;
-            referenceAssignment.assignedValue = addExpressionPrereqs(referenceAssignment.assignedValue, prereqs);
-            for (int i = 0; i < referenceAssignment.accessModifiers.size(); i++){
-                referenceAssignment.accessModifiers.set(i, addExpressionPrereqs(referenceAssignment.accessModifiers.get(i), prereqs));
+            SimplifiedASTNode.Statement replacement = addReferenceAssignmentPrereqs((SimplifiedASTNode.ReferenceAssignment) statement, prereqs);
+            if (replacement != null){
+                replacement.prev = statement.prev;
+                replacement.next = statement.next;
+                if (statement.prev != null){
+                    statement.prev.next = replacement;
+                } else {
+                    scope.first = replacement;
+                } if (statement.next != null){
+                    statement.next.prev = replacement;
+                }
             }
             return prereqs;
         } else if (statement instanceof SimplifiedASTNode.IfStatement){
@@ -258,7 +291,7 @@ public class Optimizer {
     public static void addStatementPrereqs(SimplifiedASTNode.StatementList statementList){
         SimplifiedASTNode.Statement currentStatement = statementList.first;
         while (currentStatement != null){
-            Stack<SimplifiedASTNode.FunctionCall> prereqs = getStatementPrereqs(currentStatement);
+            Stack<SimplifiedASTNode.FunctionCall> prereqs = getStatementPrereqs(currentStatement, statementList);
             while (!prereqs.isEmpty()){
                 addStatement(prereqs.pop(), currentStatement, statementList);
             }

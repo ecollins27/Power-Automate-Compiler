@@ -7,4 +7,4 @@ const->if|else|def|and|or|not|while|do|try|catch|for|in|=|\(|\)|\{|\}|\[|\]|:|\.
 ~add_op->\+|-
 ~mult_op->\*|/
 ~rel_op->==|!=|<|<=|>|>=
-~id->[a-z|A-Z][a-z|A-Z|\d]*
+~id->[A-Za-z_][A-Za-z0-9_]*$
